@@ -69,21 +69,36 @@ game_active = False
 is_start_screen = True
 my_score = 0
 
-# Move obstacles
+
 def obstacle_move():
     global game_active
     if obstacle_rect_list:
-        for obstacle in obstacle_rect_list[:]:  # Loop over a copy to remove safely
-            surface, rect = obstacle
+        updated_obstacles = []  # Temporary list to store updated obstacles
+
+        for surface, rect in obstacle_rect_list:  # Iterate safely
             rect.x -= 4
+
+            # Update surface for animation
+            if surface in snail_frames:
+                surface = snail_surf  # Use updated snail_surf
+            elif surface in fly_frames:
+                surface = fly_surf  # Use updated fly_surf
+
+            # Draw the obstacle
             screen.blit(surface, rect)
 
-            if rect.left <= -74:
-                obstacle_rect_list.remove(obstacle)
-
-            if rect.colliderect(player_rect):  # Collision check
+            # Check for collision
+            if rect.colliderect(player_rect):
                 game_active = False
-                obstacle_rect_list.clear()
+                obstacle_rect_list.clear()  # Clear obstacles immediately
+                return  # Exit function immediately to stop further updates
+
+            # If no collision and still on-screen, keep obstacle
+            if rect.left > -74:
+                updated_obstacles.append((surface, rect))
+
+        obstacle_rect_list[:] = updated_obstacles  # ✅ Safely update the list
+
 
 # Start screen function
 def start_screen():
