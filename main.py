@@ -1,106 +1,145 @@
-# Example file showing a basic pygame "game loop"
+# Jumper Guy Game with Collision Detection
 import random
 import pygame
 from sys import exit
+from random import randint, choice
 
-# pygame setup
+# --- Player Class ---
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        player_walk_1 = pygame.image.load('D:/GitHub/jumper-guy/graphics/player_walk_1.png').convert_alpha()
+        player_walk_2 = pygame.image.load('D:/GitHub/jumper-guy/graphics/player_walk_2.png').convert_alpha()
+        self.player_walk = [player_walk_1, player_walk_2]
+        self.player_index = 0
+        self.player_jump = pygame.image.load('D:/GitHub/jumper-guy/graphics/jump.png').convert_alpha()
+
+        self.image = self.player_walk[self.player_index]
+        self.rect = self.image.get_rect(midbottom=(80, 300))
+        self.gravity = 0
+
+        self.jump_sound = pygame.mixer.Sound('D:/GitHub/jumper-guy/audio/jump.mp3')
+        self.jump_sound.set_volume(0.5)
+
+    def player_input(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE] and self.rect.bottom >= 300:
+            self.gravity = -20
+            self.jump_sound.play()
+
+    def apply_gravity(self):
+        self.gravity += 1
+        self.rect.y += self.gravity
+        if self.rect.bottom >= 300:
+            self.rect.bottom = 300
+
+    def animation_state(self):
+        if self.rect.bottom < 300:
+            self.image = self.player_jump
+        else:
+            self.player_index += 0.1
+            if self.player_index >= len(self.player_walk): self.player_index = 0
+            self.image = self.player_walk[int(self.player_index)]
+
+    def update(self):
+        self.player_input()
+        self.apply_gravity()
+        self.animation_state()
+
+
+# --- Obstacle Class ---
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self, type):
+        super().__init__()
+        if type == 'fly':
+            fly_1 = pygame.image.load('D:/GitHub/jumper-guy/graphics/Fly1.png').convert_alpha()
+            fly_2 = pygame.image.load('D:/GitHub/jumper-guy/graphics/Fly2.png').convert_alpha()
+            self.frames = [fly_1, fly_2]
+            y_pos = 210
+        else:
+            snail_1 = pygame.image.load('D:/GitHub/jumper-guy/graphics/snail1.png').convert_alpha()
+            snail_2 = pygame.image.load('D:/GitHub/jumper-guy/graphics/snail2.png').convert_alpha()
+            self.frames = [snail_1, snail_2]
+            y_pos = 300
+
+        self.animation_index = 0
+        self.image = self.frames[self.animation_index]
+        self.rect = self.image.get_rect(midbottom=(randint(900, 1100), y_pos))
+
+    def animation_state(self):
+        self.animation_index += 0.1
+        if self.animation_index >= len(self.frames): self.animation_index = 0
+        self.image = self.frames[int(self.animation_index)]
+
+    def update(self):
+        self.animation_state()
+        self.rect.x -= 6
+        self.destroy()
+
+    def destroy(self):
+        if self.rect.x <= -100:
+            self.kill()
+
+
+# --- Collision Function ---
+def collision_sprite():
+    if pygame.sprite.spritecollide(player.sprite, obstacle_group, False):
+        obstacle_group.empty()
+        return False
+    else:
+        return True
+
+
+# --- Setup ---
 pygame.init()
 
-# Function to display the score
+game_over_sound = pygame.mixer.Sound('D:/GitHub/jumper-guy/audio/game_over.mp3')
+game_over_sound.set_volume(0.5)
+
+screen = pygame.display.set_mode((800, 400))
+pygame.display.set_caption("Jumper Guy")
+clock = pygame.time.Clock()
+test_font = pygame.font.Font("D:/GitHub/jumper-guy/graphics/Pixeltype.ttf", 50)
+
+# Music
+bg_music = pygame.mixer.Sound('D:/GitHub/jumper-guy/audio/music.mp3')
+bg_music.play(loops=-1)
+
+# Background
+sky_surface = pygame.image.load("D:/GitHub/jumper-guy/graphics/Sky.png").convert()
+sky_rect = sky_surface.get_rect(topleft=(0, 0))
+ground_surface = pygame.image.load("D:/GitHub/jumper-guy/graphics/ground.png").convert()
+
+# Start screen image
+player_stand = pygame.image.load("D:/GitHub/jumper-guy/graphics/player_stand.png").convert_alpha()
+
+# Groups
+player = pygame.sprite.GroupSingle()
+player.add(Player())
+
+obstacle_group = pygame.sprite.Group()
+
+# Game variables
+start_time = 0
+my_score = 0
+game_active = False
+is_start_screen = True
+
+# Obstacle spawn timer
+obstacle_timer = pygame.USEREVENT + 1
+pygame.time.set_timer(obstacle_timer, 1500)
+
+
+# --- Score Function ---
 def score():
     current_time = (pygame.time.get_ticks() - start_time) // 1000
-    text_surface = test_font.render("Score: " + str(current_time), False, "Black")
+    text_surface = test_font.render(f"Score: {current_time}", False, "Black")
     text_rect = text_surface.get_rect(center=sky_rect.center)
     screen.blit(text_surface, text_rect)
     return current_time
 
-def player_walk_animate():
-    global player_index, player_surf
 
-    if player_rect.bottom < 215:
-        player_surf = player_jump
-    else:
-        player_index +=0.1
-        if player_index > 2:
-            player_index = 0
-        player_surf = player_walk_list[int(player_index)]
-
-
-# Load font
-test_font = pygame.font.Font("D:/GitHub/jumper-guy/graphics/Pixeltype.ttf", 50)
-
-# Game variables
-start_time = 0
-screen = pygame.display.set_mode((800, 400))
-clock = pygame.time.Clock()
-
-# Load images
-sky_surface = pygame.image.load("D:/GitHub/jumper-guy/graphics/Sky.png").convert()
-sky_rect = sky_surface.get_rect(topleft=(0, 0))
-
-ground_surface = pygame.image.load("D:/GitHub/jumper-guy/graphics/ground.png").convert()
-
-player_stand = pygame.image.load("D:/GitHub/jumper-guy/graphics/player_stand.png").convert_alpha()
-player_walk_1 = pygame.image.load("D:/GitHub/jumper-guy/graphics/player_walk_1.png").convert_alpha()
-player_walk_2 = pygame.image.load("D:/GitHub/jumper-guy/graphics/player_walk_2.png").convert_alpha()
-player_jump = pygame.image.load("D:/GitHub/jumper-guy/graphics/jump.png").convert_alpha()
-player_walk_list = [player_walk_1,player_walk_2]
-player_index = 0
-player_surf = player_walk_list[player_index]
-player_rect = player_surf.get_rect(midbottom=(200, 400))  # ✅ Player positioned 100 pixels higher
-
-
-snail_surface1 = pygame.image.load("D:/GitHub/jumper-guy/graphics/snail1.png").convert_alpha()
-snail_surface2 = pygame.image.load("D:/GitHub/jumper-guy/graphics/snail2.png").convert_alpha()
-snail_frames = [snail_surface1,snail_surface2]
-snail_index = 0
-snail_surf = snail_frames[snail_index]
-
-fly_surface1 = pygame.image.load("D:/GitHub/jumper-guy/graphics/Fly1.png").convert_alpha()
-fly_surface2 = pygame.image.load("D:/GitHub/jumper-guy/graphics/Fly2.png").convert_alpha()
-fly_frames = [fly_surface1,fly_surface2]
-fly_index = 0
-fly_surf = fly_frames[fly_index]
-
-obstacle_rect_list = []  # Stores tuples (surface, rect)
-
-gravity = 0
-game_active = False
-is_start_screen = True
-my_score = 0
-
-
-def obstacle_move():
-    global game_active
-    if obstacle_rect_list:
-        updated_obstacles = []  # Temporary list to store updated obstacles
-
-        for surface, rect in obstacle_rect_list:  # Iterate safely
-            rect.x -= 4
-
-            # Update surface for animation
-            if surface in snail_frames:
-                surface = snail_surf  # Use updated snail_surf
-            elif surface in fly_frames:
-                surface = fly_surf  # Use updated fly_surf
-
-            # Draw the obstacle
-            screen.blit(surface, rect)
-
-            # Check for collision
-            if rect.colliderect(player_rect):
-                game_active = False
-                obstacle_rect_list.clear()  # Clear obstacles immediately
-                return  # Exit function immediately to stop further updates
-
-            # If no collision and still on-screen, keep obstacle
-            if rect.left > -74:
-                updated_obstacles.append((surface, rect))
-
-        obstacle_rect_list[:] = updated_obstacles  # ✅ Safely update the list
-
-
-# Start screen function
+# --- Start Screen Function ---
 def start_screen():
     screen.fill((192, 232, 236))
     player_rect_game_over = pygame.transform.scale2x(player_stand).get_rect(center=screen.get_rect().center)
@@ -111,21 +150,11 @@ def start_screen():
     screen.blit(restart_text, restart_text_rect)
 
     title_text = test_font.render("Jumper Guy", False, (122, 154, 156))
-    title_text_rect = title_text.get_rect(
-        bottomright=(player_rect_game_over.midtop[0], player_rect_game_over.midtop[1] - 45))
-    screen.blit(pygame.transform.scale2x(title_text), title_text_rect)
+    title_text_rect = title_text.get_rect(midbottom=player_rect_game_over.midtop)
+    screen.blit(title_text, title_text_rect)
 
-# Event timer for obstacles
-obstacle_timer = pygame.USEREVENT + 1
-pygame.time.set_timer(obstacle_timer, 1800)
 
-fly_timer = pygame.USEREVENT + 2
-pygame.time.set_timer(fly_timer, 400)
-
-snail_timer = pygame.USEREVENT + 3
-pygame.time.set_timer(snail_timer, 500)
-
-# Main Game Loop
+# --- Main Game Loop ---
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -133,38 +162,15 @@ while True:
             exit()
 
         if game_active:
-            # Player Jump
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if player_rect.collidepoint(event.pos) and player_rect.y >= 215:
-                    gravity = -25  # Jump force
-
-            # Generate Obstacles
             if event.type == obstacle_timer:
-                random_int = random.randint(1, 10)
-                if random_int % 2 == 0:
-                    obstacle_rect_list.append(
-                        (snail_surf, snail_surf.get_rect(midbottom=(random.randint(900, 1100), 310))))
-                else:
-                    obstacle_rect_list.append((fly_surf, fly_surf.get_rect(
-                        midbottom=(random.randint(900, 1100), 215))))  # Adjust fly height
-
-            if event.type == snail_timer:
-                if snail_index == 0: snail_index =1
-                else: snail_index = 0
-                snail_surf = snail_frames[snail_index]
-
-            if event.type == fly_timer:
-                if fly_index == 0: fly_index =1
-                else: fly_index = 0
-                fly_surf = fly_frames[fly_index]
+                obstacle_group.add(Obstacle(choice(['fly', 'snail', 'snail', 'snail'])))
 
         elif event.type == pygame.KEYDOWN and not game_active:
-            # Restart Game
             game_active = True
             start_time = pygame.time.get_ticks()
-            obstacle_rect_list.clear()
-            player_rect.y = 215  # Reset player position higher
-            gravity = 0
+            obstacle_group.empty()
+            player.sprite.rect.midbottom = (80, 300)
+            player.sprite.gravity = 0
 
         if is_start_screen:
             start_screen()
@@ -173,27 +179,26 @@ while True:
                 start_time = pygame.time.get_ticks()
 
     if game_active and not is_start_screen:
-        # Apply gravity
-        gravity += 1
-        player_rect.y += gravity
-
-        # Prevent falling through the ground
-        if player_rect.y >= 215:
-            player_rect.y = 215
-            gravity = 0
-
-        # Draw elements
         screen.blit(sky_surface, sky_rect)
         screen.blit(ground_surface, (0, 300))
-        player_walk_animate()
-        screen.blit(player_surf, player_rect)
 
-        obstacle_move()  # Move obstacles
+        player.draw(screen)
+        player.update()
 
-        my_score = score()  # Display score
+        obstacle_group.draw(screen)
+        obstacle_group.update()
+
+        game_active = collision_sprite()  # <-- Collision detection here!
+
+        my_score = score()
 
     elif not game_active and not is_start_screen:
-        # Game Over Screen
+        # Stop background music
+        bg_music.stop()
+
+        # Play game over sound
+        game_over_sound.play()
+
         screen.fill((192, 232, 236))
         player_rect_game_over = pygame.transform.scale2x(player_stand).get_rect(center=screen.get_rect().center)
         screen.blit(pygame.transform.scale2x(player_stand), player_rect_game_over)
@@ -211,11 +216,9 @@ while True:
         screen.blit(score_text, score_text_rect)
 
         title_text = test_font.render("Jumper Guy", False, (122, 154, 156))
-        title_text_rect = title_text.get_rect(
-            midbottom=(game_over_text_rect.midtop[0] - 90, game_over_text_rect.midtop[1] - 40))
-        screen.blit(pygame.transform.scale2x(title_text), title_text_rect)
+        title_text_rect = title_text.get_rect(midbottom=game_over_text_rect.midtop)  # Center the text
+        screen.blit(title_text, title_text_rect)
 
     pygame.display.update()
-    clock.tick(60)  # Limit FPS to 60
+    clock.tick(60)
 
-pygame.quit()
